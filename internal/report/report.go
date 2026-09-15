@@ -20,6 +20,8 @@ var (
 	colorMuted  = color.New(color.Faint)
 )
 
+func fprintln(w io.Writer, a ...interface{}) { _, _ = fmt.Fprintln(w, a...) }
+
 func Render(w io.Writer, report *diff.DriftReport, format string) bool {
 	switch format {
 	case "json":
@@ -33,43 +35,42 @@ func Render(w io.Writer, report *diff.DriftReport, format string) bool {
 }
 
 func renderTable(w io.Writer, report *diff.DriftReport) {
-	colorHeader.Fprintf(w, "\nDriftWatch Scan Report\n")
-	colorMuted.Fprintf(w, "Scanned at : %s\n", report.ScannedAt.Format("2006-01-02 15:04:05"))
-	colorMuted.Fprintf(w, "Cluster    : %s\n", report.ClusterContext)
-	colorMuted.Fprintf(w, "GitOps repo: %s\n\n", report.GitOpsRepo)
+	_, _ = colorHeader.Fprintf(w, "\nDriftWatch Scan Report\n")
+	_, _ = colorMuted.Fprintf(w, "Scanned at : %s\n", report.ScannedAt.Format("2006-01-02 15:04:05"))
+	_, _ = colorMuted.Fprintf(w, "Cluster    : %s\n", report.ClusterContext)
+	_, _ = colorMuted.Fprintf(w, "GitOps repo: %s\n\n", report.GitOpsRepo)
 
 	const (
-		wKind   = 16
-		wName   = 36
-		wNS     = 20
-		wStatus = 0
+		wKind = 16
+		wName = 36
+		wNS   = 20
 	)
 
-	colorHeader.Fprintf(w, "%-*s %-*s %-*s %s\n", wKind, "KIND", wName, "NAME", wNS, "NAMESPACE", "STATUS")
-	fmt.Fprintln(w, strings.Repeat("─", 100))
+	_, _ = colorHeader.Fprintf(w, "%-*s %-*s %-*s %s\n", wKind, "KIND", wName, "NAME", wNS, "NAMESPACE", "STATUS")
+	fprintln(w, strings.Repeat("─", 100))
 
 	if len(report.Drifts) == 0 {
-		colorOK.Fprintf(w, "  ✓ No drift detected — all resources are in sync.\n")
+		_, _ = colorOK.Fprintf(w, "  ✓ No drift detected — all resources are in sync.\n")
 	} else {
 		for _, item := range report.Drifts {
 			status, statusColor := formatStatus(item)
-			statusColor.Fprintf(w, "%-*s %-*s %-*s %s\n",
+			_, _ = statusColor.Fprintf(w, "%-*s %-*s %-*s %s\n",
 				wKind, item.Kind,
 				wName, truncate(item.Name, wName),
 				wNS, truncate(item.Namespace, wNS),
 				status,
 			)
 			for _, detail := range item.Details {
-				colorMuted.Fprintf(w, "  %s  └─ %s\n", strings.Repeat(" ", wKind+wName+wNS), detail)
+				_, _ = colorMuted.Fprintf(w, "  %s  └─ %s\n", strings.Repeat(" ", wKind+wName+wNS), detail)
 			}
 		}
 	}
 
-	fmt.Fprintln(w, strings.Repeat("─", 100))
+	fprintln(w, strings.Repeat("─", 100))
 	if report.DriftCount == 0 {
-		colorOK.Fprintf(w, "✓ %d resources scanned, 0 drifts detected\n\n", report.TotalResources)
+		_, _ = colorOK.Fprintf(w, "✓ %d resources scanned, 0 drifts detected\n\n", report.TotalResources)
 	} else {
-		colorDrift.Fprintf(w, "✗ %d resources scanned, %d drift(s) detected\n\n", report.TotalResources, report.DriftCount)
+		_, _ = colorDrift.Fprintf(w, "✗ %d resources scanned, %d drift(s) detected\n\n", report.TotalResources, report.DriftCount)
 	}
 }
 

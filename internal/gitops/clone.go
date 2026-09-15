@@ -19,7 +19,7 @@ func CloneRepo(repoURL, branch, token string) (*CloneResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
-	cleanup := func() { os.RemoveAll(dir) }
+	cleanup := func() { _ = os.RemoveAll(dir) }
 
 	opts := &git.CloneOptions{
 		URL:           repoURL,
