@@ -34,7 +34,7 @@ func specToMap(obj interface{}) map[string]interface{} {
 	return m
 }
 
-func FetchResources(client *kubernetes.Clientset, cfg *config.Config) ([]Resource, error) {
+func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource, error) {
 	ctx := context.Background()
 	ns := cfg.Namespace
 	list := metav1.ListOptions{}

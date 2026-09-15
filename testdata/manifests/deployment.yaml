@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: default
+  labels:
+    app: api-server
+    version: v1.2.0
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: api
+          image: myrepo/api:v1.2.0
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: staging
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: worker
+          image: myrepo/worker:v1.0.0

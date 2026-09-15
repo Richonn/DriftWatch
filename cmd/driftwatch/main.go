@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Richonn/driftwatch/internal/cluster"
 	"github.com/Richonn/driftwatch/internal/config"
+	"github.com/Richonn/driftwatch/internal/diff"
+	"github.com/Richonn/driftwatch/internal/gitops"
+	"github.com/Richonn/driftwatch/internal/report"
 	"github.com/spf13/cobra"
 )
 
@@ -40,6 +44,34 @@ func run() error {
 		if err := cfg.Validate(); err != nil {
 			return err
 		}
+
+		client, err := cluster.NewClient(&cfg)
+		if err != nil {
+			return fmt.Errorf("connect to cluster: %w", err)
+		}
+
+		fmt.Fprintln(os.Stderr, "→ Fetching live resources from cluster…")
+		liveResources, err := cluster.FetchResources(client, &cfg)
+		if err != nil {
+			return fmt.Errorf("fetch cluster resources: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "→ Cloning %s (branch: %s)…\n", cfg.Repo, cfg.Branch)
+		cloneResult, err := gitops.CloneRepo(cfg.Repo, cfg.Branch, cfg.Token)
+		if err != nil {
+			return fmt.Errorf("clone repo: %w", err)
+		}
+		defer cloneResult.Cleanup()
+
+		fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
+		gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path)
+		if err != nil {
+			return fmt.Errorf("parse manifests: %w", err)
+		}
+
+		driftReport := diff.Compare(liveResources, gitopsResources, cfg.Context, cfg.Repo)
+
+		report.RenderToStdout(driftReport, cfg.Output, cfg.FailOnDrift)
 		return nil
 	}
 
@@ -51,7 +83,7 @@ func run() error {
 	}
 
 	completionCmd := new(cobra.Command)
-	completionCmd.Use   = "completion [bash|zsh|fish|powershell]"
+	completionCmd.Use = "completion [bash|zsh|fish|powershell]"
 	completionCmd.Short = "Generate shell autocompletion script"
 	completionCmd.Long = `Generate an autocompletion script for driftwatch in the specified shell.
 
