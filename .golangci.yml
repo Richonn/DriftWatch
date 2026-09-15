@@ -1,5 +1,8 @@
 run:
   go: '1.24'
+  timeout: 5m
+  exclude-dirs:
+    - vendor
 
 linters:
   enable-all: false
