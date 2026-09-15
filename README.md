@@ -2,8 +2,9 @@
 
 > Detect drift between your live Kubernetes cluster and your GitOps repository — works with ArgoCD and Flux.
 
+[![CI](https://github.com/Richonn/DriftWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Richonn/DriftWatch/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](go.mod)
+[![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8.svg)](go.mod)
 
 ---
 
@@ -38,14 +39,14 @@ cd DriftWatch
 go build -o driftwatch ./cmd/driftwatch
 ```
 
-Go 1.22 or later is required.
+Go 1.26 or later is required.
 
 ---
 
 ## Quick start
 
 ```bash
-# Scan the default namespace against a public GitOps repo
+# Scan all namespaces against a public GitOps repo
 driftwatch scan --repo https://github.com/your-org/your-gitops-repo
 
 # Scan a specific namespace, on a specific cluster context
@@ -71,13 +72,18 @@ driftwatch scan --repo https://github.com/your-org/gitops --output json
 ### Example output
 
 ```
-KIND         NAME               NAMESPACE    STATUS
-Deployment   api-server         production   ⚠ SPEC DRIFT (image: v1.2.0 → v1.3.1)
-Service      redis              production   ✗ MISSING IN CLUSTER
-ConfigMap    feature-flags      production   ✓ IN SYNC
-Deployment   legacy-worker      production   ✗ MISSING IN GITOPS
+DriftWatch Scan Report
+Scanned at : 2026-09-15 14:32:01
+Cluster    : my-cluster
+GitOps repo: https://github.com/your-org/gitops
 
-Scanned 12 resources — 3 drifts detected.
+KIND             NAME                                 NAMESPACE            STATUS
+────────────────────────────────────────────────────────────────────────────────────────────────────────
+Deployment       api-server                           production           ⚠ SPEC DRIFT (container "api" image: cluster=myrepo/api:v1.3.1 gitops=myrepo/api:v1.2.0)
+Service          redis                                production           ✗ MISSING IN CLUSTER
+Deployment       legacy-worker                        production           ⚠ MISSING IN GITOPS
+────────────────────────────────────────────────────────────────────────────────────────────────────────
+✗ 12 resources scanned, 3 drift(s) detected
 ```
 
 ---
@@ -135,15 +141,17 @@ jobs:
 
 DriftWatch compares the following Kubernetes resource types:
 
-- `Deployment`
-- `StatefulSet`
-- `DaemonSet`
-- `Service`
-- `ConfigMap`
-- `Secret` *(names only — values are never read or logged)*
-- `Ingress`
-- `ServiceAccount`
-- `NetworkPolicy`
+| Kind | Compared fields |
+|------|----------------|
+| `Deployment` | `replicas`, container images, resource requests/limits, labels |
+| `StatefulSet` | `replicas`, container images, resource requests/limits, labels |
+| `DaemonSet` | Container images, resource requests/limits, labels |
+| `Service` | `spec.type`, `spec.clusterIP` |
+| `ConfigMap` | All keys in `data` |
+| `Secret` | Key names only — values are **never** read or logged |
+| `Ingress` | `spec.ingressClassName` |
+| `ServiceAccount` | Presence only |
+| `NetworkPolicy` | Presence + spec |
 
 System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automatically excluded.
 
@@ -151,7 +159,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 
 ## Limitations (v1)
 
-- **Helm charts are not rendered.** If your GitOps repo contains Helm charts, DriftWatch will detect the `Chart.yaml` and warn you, but will not template the chart for comparison. Helm support is planned for v2.
+- **Helm charts are not rendered.** DriftWatch detects `Chart.yaml` and warns, but does not template the chart for comparison. Helm support is planned for v2.
 - **Kustomize overlays are not applied.** Raw manifests only.
 - **CRDs are not supported.** Only built-in Kubernetes resource types are compared.
 
@@ -161,9 +169,12 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 
 | Feature | Status |
 |---------|--------|
-| Core drift detection (Deployments, Services, ConfigMaps…) | In progress |
-| JSON / YAML output | Planned |
-| `--fail-on-drift` CI mode | Planned |
+| Core drift detection (Deployments, Services, ConfigMaps…) | ✅ v1 |
+| JSON / YAML output | ✅ v1 |
+| `--fail-on-drift` CI mode | ✅ v1 |
+| Shell autocompletion (bash/zsh/fish/powershell) | ✅ v1 |
+| Multi-platform releases via GoReleaser | ✅ v1 |
+| CI (lint, tests, cross-build) | ✅ v1 |
 | Helm chart rendering | v2 |
 | Kustomize overlay support | v2 |
 | CRD support | v2 |
