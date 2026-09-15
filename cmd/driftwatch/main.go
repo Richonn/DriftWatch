@@ -39,7 +39,7 @@ func run() error {
 	scanCmd.Flags().StringVar(&cfg.Repo, "repo", "", "GitOps repository URL (HTTPS or SSH)")
 	scanCmd.Flags().StringVar(&cfg.Token, "token", "", "Auth token for private repositories")
 
-	scanCmd.MarkFlagRequired("repo")
+	_ = scanCmd.MarkFlagRequired("repo")
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if err := cfg.Validate(); err != nil {
 			return err

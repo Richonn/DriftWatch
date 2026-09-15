@@ -10,10 +10,6 @@ func deployment(name, ns string, spec map[string]interface{}) cluster.Resource {
 	return cluster.Resource{Kind: "Deployment", Name: name, Namespace: ns, Spec: spec}
 }
 
-func service(name, ns string, spec map[string]interface{}) cluster.Resource {
-	return cluster.Resource{Kind: "Service", Name: name, Namespace: ns, Spec: spec}
-}
-
 func configmap(name, ns string, data map[string]string) cluster.Resource {
 	return cluster.Resource{
 		Kind:      "ConfigMap",
