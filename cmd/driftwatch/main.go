@@ -12,6 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "driftwatch: %v\n", err)
@@ -79,7 +85,7 @@ func run() error {
 	versionCmd.Use = "version"
 	versionCmd.Short = "Print the version of driftwatch"
 	versionCmd.Run = func(cmd *cobra.Command, args []string) {
-		fmt.Println("driftwatch v0.1.0")
+		fmt.Printf("driftwatch %s (commit: %s, built: %s)\n", version, commit, date)
 	}
 
 	completionCmd := new(cobra.Command)
