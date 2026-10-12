@@ -1,0 +1,3 @@
+replicaCount: 2
+image: myrepo/helm-app:v1.0.0
+namespace: helm-ns

@@ -16,6 +16,7 @@ type Config struct {
 	Output      string
 	FailOnDrift bool
 	Token       string
+	HelmValues  []string
 }
 
 func DefaultKubeConfig() string {

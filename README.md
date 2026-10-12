@@ -67,6 +67,11 @@ driftwatch scan \
 
 # Output as JSON (useful for scripting)
 driftwatch scan --repo https://github.com/your-org/gitops --output json
+
+# Render Helm charts with custom values
+driftwatch scan \
+  --repo https://github.com/your-org/gitops \
+  --helm-values ./overrides/prod.yaml
 ```
 
 ### Example output
@@ -101,6 +106,7 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--token` | | Auth token for private repositories |
 | `--output` | `table` | Output format: `table`, `json`, or `yaml` |
 | `--fail-on-drift` | `false` | Exit with code 1 if any drift is detected |
+| `--helm-values` | | Extra values files passed to Helm when rendering charts (repeatable) |
 
 ---
 
@@ -157,9 +163,9 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 
 ---
 
-## Limitations (v1)
+## Limitations
 
-- **Helm charts are not rendered.** DriftWatch detects `Chart.yaml` and warns, but does not template the chart for comparison. Helm support is planned for v2.
+- **Helm subcharts / dependencies are not fetched automatically.** Run `helm dependency update` on the chart directory before scanning if your chart has dependencies. DriftWatch will warn if it detects missing dependencies.
 - **Kustomize overlays are not applied.** Raw manifests only.
 - **CRDs are not supported.** Only built-in Kubernetes resource types are compared.
 
@@ -175,7 +181,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Shell autocompletion (bash/zsh/fish/powershell) | ✅ v1 |
 | Multi-platform releases via GoReleaser | ✅ v1 |
 | CI (lint, tests, cross-build) | ✅ v1 |
-| Helm chart rendering | v2 |
+| Helm chart rendering | ✅ v2 |
 | Kustomize overlay support | v2 |
 | CRD support | v2 |
 | `--watch` continuous mode | v2 |

@@ -39,7 +39,7 @@ var supportedKinds = map[string]bool{
 	"NetworkPolicy":  true,
 }
 
-func ParseManifests(rootDir, subPath string) ([]cluster.Resource, error) {
+func ParseManifests(rootDir, subPath string, helmOpts HelmOptions) ([]cluster.Resource, error) {
 	searchRoot := filepath.Join(rootDir, subPath)
 	var resources []cluster.Resource
 
@@ -47,12 +47,23 @@ func ParseManifests(rootDir, subPath string) ([]cluster.Resource, error) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
-		}
 		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			// Skip root dir itself; only check subdirectories for Helm charts
+			if path != searchRoot && isHelmChart(path) {
+				found, err := renderChart(path, helmOpts)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "warn: skipping helm chart %s: %v\n", path, err)
+				} else {
+					resources = append(resources, found...)
+				}
+				return filepath.SkipDir
+			}
 			return nil
 		}
+
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext != ".yaml" && ext != ".yml" {
 			return nil
@@ -79,12 +90,16 @@ func parseFile(path string) ([]cluster.Resource, error) {
 	}
 
 	if strings.HasSuffix(filepath.Base(path), "Chart.yaml") {
-		fmt.Fprintf(os.Stderr, "warn: Helm chart detected at %s — Helm rendering not supported in v1, skipping\n", path)
+		fmt.Fprintf(os.Stderr, "warn: Helm chart detected at %s — use --helm-values or place chart in a subdirectory\n", path)
 		return nil, nil
 	}
 
+	return parseYAMLDocs(bytes.NewReader(data))
+}
+
+func parseYAMLDocs(r io.Reader) ([]cluster.Resource, error) {
 	var resources []cluster.Resource
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder := yaml.NewDecoder(r)
 
 	for {
 		var m manifest

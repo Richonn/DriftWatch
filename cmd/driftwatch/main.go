@@ -44,6 +44,7 @@ func run() error {
 	scanCmd.Flags().StringVar(&cfg.Path, "path", ".", "Subdirectory within the repo to scan")
 	scanCmd.Flags().StringVar(&cfg.Repo, "repo", "", "GitOps repository URL (HTTPS or SSH)")
 	scanCmd.Flags().StringVar(&cfg.Token, "token", "", "Auth token for private repositories")
+	scanCmd.Flags().StringArrayVar(&cfg.HelmValues, "helm-values", nil, "Additional values file(s) for Helm chart rendering (can be repeated)")
 
 	_ = scanCmd.MarkFlagRequired("repo")
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -70,7 +71,7 @@ func run() error {
 		defer cloneResult.Cleanup()
 
 		fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
-		gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path)
+		gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues})
 		if err != nil {
 			return fmt.Errorf("parse manifests: %w", err)
 		}

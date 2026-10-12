@@ -8,14 +8,12 @@ import (
 	"github.com/Richonn/driftwatch/internal/cluster"
 )
 
-// testdataDir returns the absolute path to the testdata/manifests directory.
 func testdataDir(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
-	// parse_test.go is at internal/gitops/ — go up two levels to reach repo root
 	root := filepath.Join(filepath.Dir(file), "..", "..")
 	return filepath.Join(root, "testdata", "manifests")
 }
@@ -30,8 +28,10 @@ func findResource(resources []cluster.Resource, kind, name, ns string) *cluster.
 	return nil
 }
 
+var noHelm = HelmOptions{}
+
 func TestParseManifests_Deployment(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestParseManifests_Deployment(t *testing.T) {
 }
 
 func TestParseManifests_MultiDoc(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestParseManifests_MultiDoc(t *testing.T) {
 }
 
 func TestParseManifests_ConfigMap(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestParseManifests_ConfigMap(t *testing.T) {
 }
 
 func TestParseManifests_SecretKeysOnly(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestParseManifests_SecretKeysOnly(t *testing.T) {
 }
 
 func TestParseManifests_UnsupportedKindIgnored(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestParseManifests_UnsupportedKindIgnored(t *testing.T) {
 }
 
 func TestParseManifests_HelmChartSkipped(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestParseManifests_HelmChartSkipped(t *testing.T) {
 }
 
 func TestParseManifests_NonEmptyResult(t *testing.T) {
-	resources, err := ParseManifests(testdataDir(t), ".")
+	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
