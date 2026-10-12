@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	helmchart "helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
 func helmChartDir(t *testing.T) string {
@@ -43,6 +46,39 @@ func TestRenderChart_ValuesOverride(t *testing.T) {
 	if findResource(resources, "Deployment", "helm-app", "override-ns") == nil {
 		t.Errorf("expected Deployment in 'override-ns' after values override, got: %+v", resources)
 	}
+}
+
+func TestRenderChart_InvalidDir_ReturnsError(t *testing.T) {
+	_, err := renderChart("/nonexistent/path", HelmOptions{})
+	if err == nil {
+		t.Fatal("expected error for invalid chart dir")
+	}
+}
+
+func TestRenderChart_InvalidValuesFile_ReturnsError(t *testing.T) {
+	_, err := renderChart(helmChartDir(t), HelmOptions{ValuesFiles: []string{"/nonexistent/values.yaml"}})
+	if err == nil {
+		t.Fatal("expected error for missing values file")
+	}
+}
+
+func TestWarnMissingDeps_NoDeps_NoPanic(t *testing.T) {
+	chrt, err := loader.Load(helmChartDir(t))
+	if err != nil {
+		t.Fatalf("load chart: %v", err)
+	}
+	warnMissingDeps(chrt)
+}
+
+func TestWarnMissingDeps_WithMissingDep(t *testing.T) {
+	chrt, err := loader.Load(helmChartDir(t))
+	if err != nil {
+		t.Fatalf("load chart: %v", err)
+	}
+	chrt.Metadata.Dependencies = []*helmchart.Dependency{
+		{Name: "redis", Version: "1.0.0", Repository: "https://charts.bitnami.com"},
+	}
+	warnMissingDeps(chrt)
 }
 
 func TestParseManifests_WithHelmChart(t *testing.T) {

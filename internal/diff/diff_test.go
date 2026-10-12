@@ -186,6 +186,170 @@ func TestCompare_SameNameDifferentNamespace(t *testing.T) {
 	}
 }
 
+// --- SPEC_DRIFT: Service type ---
+
+func TestCompare_SpecDrift_Service(t *testing.T) {
+	live := []cluster.Resource{{
+		Kind: "Service", Name: "svc", Namespace: "default",
+		Spec: map[string]interface{}{"type": "ClusterIP", "clusterIP": "10.0.0.1"},
+	}}
+	gitops := []cluster.Resource{{
+		Kind: "Service", Name: "svc", Namespace: "default",
+		Spec: map[string]interface{}{"type": "NodePort", "clusterIP": "10.0.0.1"},
+	}}
+
+	report := Compare(live, gitops, "ctx", "https://repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == "spec.type: cluster=ClusterIP gitops=NodePort" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected service type detail, got: %v", report.Drifts[0].Details)
+	}
+}
+
+// --- SPEC_DRIFT: Ingress ---
+
+func TestCompare_SpecDrift_Ingress(t *testing.T) {
+	live := []cluster.Resource{{
+		Kind: "Ingress", Name: "ing", Namespace: "default",
+		Spec: map[string]interface{}{"ingressClassName": "nginx"},
+	}}
+	gitops := []cluster.Resource{{
+		Kind: "Ingress", Name: "ing", Namespace: "default",
+		Spec: map[string]interface{}{"ingressClassName": "traefik"},
+	}}
+
+	report := Compare(live, gitops, "ctx", "https://repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == "spec.ingressClassName: cluster=nginx gitops=traefik" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected ingressClassName detail, got: %v", report.Drifts[0].Details)
+	}
+}
+
+// --- SPEC_DRIFT: labels ---
+
+func TestCompare_SpecDrift_Labels(t *testing.T) {
+	live := []cluster.Resource{{
+		Kind: "Deployment", Name: "api", Namespace: "default",
+		Labels: map[string]string{"env": "staging"},
+		Spec:   specWithReplicas(1),
+	}}
+	gitops := []cluster.Resource{{
+		Kind: "Deployment", Name: "api", Namespace: "default",
+		Labels: map[string]string{"env": "prod"},
+		Spec:   specWithReplicas(1),
+	}}
+
+	report := Compare(live, gitops, "ctx", "https://repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == `label "env": cluster=staging gitops=prod` {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected label detail, got: %v", report.Drifts[0].Details)
+	}
+}
+
+// --- SPEC_DRIFT: default kind (ServiceAccount) ---
+
+func TestCompare_SpecDrift_DefaultKind_Labels(t *testing.T) {
+	live := []cluster.Resource{{
+		Kind: "ServiceAccount", Name: "sa", Namespace: "default",
+		Labels: map[string]string{"team": "a"},
+		Spec:   map[string]interface{}{},
+	}}
+	gitops := []cluster.Resource{{
+		Kind: "ServiceAccount", Name: "sa", Namespace: "default",
+		Labels: map[string]string{"team": "b"},
+		Spec:   map[string]interface{}{},
+	}}
+
+	report := Compare(live, gitops, "ctx", "https://repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+}
+
+// --- ConfigMap: key in gitops missing in cluster ---
+
+func TestCompare_SpecDrift_ConfigMap_MissingInLive(t *testing.T) {
+	live := []cluster.Resource{configmap("cfg", "default", map[string]string{})}
+	gitops := []cluster.Resource{configmap("cfg", "default", map[string]string{"newkey": "val"})}
+
+	report := Compare(live, gitops, "ctx", "https://repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == "data.newkey: missing in cluster, defined in GitOps" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected missing-in-cluster detail, got: %v", report.Drifts[0].Details)
+	}
+}
+
+// --- intField: int and int64 types ---
+
+func TestIntField_IntType(t *testing.T) {
+	spec := map[string]interface{}{"replicas": int(3)}
+	v := intField(spec, "replicas")
+	if v == nil || *v != 3 {
+		t.Errorf("expected 3, got %v", v)
+	}
+}
+
+func TestIntField_Int64Type(t *testing.T) {
+	spec := map[string]interface{}{"replicas": int64(7)}
+	v := intField(spec, "replicas")
+	if v == nil || *v != 7 {
+		t.Errorf("expected 7, got %v", v)
+	}
+}
+
+func TestIntField_MissingKey(t *testing.T) {
+	v := intField(map[string]interface{}{}, "replicas")
+	if v != nil {
+		t.Errorf("expected nil, got %v", v)
+	}
+}
+
+// --- mapStr: map[interface{}]interface{} ---
+
+func TestMapStr_InterfaceMap(t *testing.T) {
+	input := map[interface{}]interface{}{"key": "val"}
+	result := mapStr(input)
+	if result["key"] != "val" {
+		t.Errorf("expected val, got %q", result["key"])
+	}
+}
+
 // --- Metadata ---
 
 func TestCompare_Metadata(t *testing.T) {

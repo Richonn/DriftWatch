@@ -112,6 +112,13 @@ func TestParseManifests_HelmChartSkipped(t *testing.T) {
 	}
 }
 
+func TestParseManifests_NonexistentDir_ReturnsError(t *testing.T) {
+	_, err := ParseManifests("/nonexistent/path", ".", noHelm)
+	if err == nil {
+		t.Fatal("expected error for nonexistent directory")
+	}
+}
+
 func TestParseManifests_NonEmptyResult(t *testing.T) {
 	resources, err := ParseManifests(testdataDir(t), ".", noHelm)
 	if err != nil {
