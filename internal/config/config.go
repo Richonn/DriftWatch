@@ -19,6 +19,7 @@ type Config struct {
 	HelmValues     []string
 	Watch          bool
 	WatchInterval  int
+	WebhookURL     string
 }
 
 func DefaultKubeConfig() string {

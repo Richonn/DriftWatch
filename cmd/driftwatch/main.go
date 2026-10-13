@@ -12,6 +12,7 @@ import (
 	"github.com/Richonn/driftwatch/internal/config"
 	"github.com/Richonn/driftwatch/internal/diff"
 	"github.com/Richonn/driftwatch/internal/gitops"
+	"github.com/Richonn/driftwatch/internal/notify"
 	"github.com/Richonn/driftwatch/internal/report"
 	"github.com/spf13/cobra"
 )
@@ -51,6 +52,7 @@ func run() error {
 	scanCmd.Flags().StringArrayVar(&cfg.HelmValues, "helm-values", nil, "Additional values file(s) for Helm chart rendering (can be repeated)")
 	scanCmd.Flags().BoolVar(&cfg.Watch, "watch", false, "Re-run scan at regular intervals (Ctrl+C to stop)")
 	scanCmd.Flags().IntVar(&cfg.WatchInterval, "interval", 60, "Seconds between scans in watch mode")
+	scanCmd.Flags().StringVar(&cfg.WebhookURL, "webhook", "", "Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint)")
 
 	_ = scanCmd.MarkFlagRequired("repo")
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -66,6 +68,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		sendNotification(&cfg, driftReport)
 		report.RenderToStdout(driftReport, cfg.Output, cfg.FailOnDrift)
 		return nil
 	}
@@ -144,6 +147,15 @@ func runScan(cfg *config.Config) (*diff.DriftReport, error) {
 	return diff.Compare(liveResources, gitopsResources, cfg.Context, cfg.Repo), nil
 }
 
+func sendNotification(cfg *config.Config, driftReport *diff.DriftReport) {
+	if cfg.WebhookURL == "" {
+		return
+	}
+	if err := notify.Send(cfg.WebhookURL, driftReport); err != nil {
+		fmt.Fprintf(os.Stderr, "warn: webhook notification failed: %v\n", err)
+	}
+}
+
 func runWatch(cfg *config.Config) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -157,6 +169,7 @@ func runWatch(cfg *config.Config) error {
 			fmt.Fprintf(os.Stderr, "scan error: %v\n", err)
 			return
 		}
+		sendNotification(cfg, driftReport)
 		report.Render(os.Stdout, driftReport, cfg.Output)
 		fmt.Fprintf(os.Stderr, "Next scan in %ds — Ctrl+C to stop\n", cfg.WatchInterval)
 	}

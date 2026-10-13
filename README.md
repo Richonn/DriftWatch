@@ -118,6 +118,7 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--helm-values` | | Extra values files passed to Helm when rendering charts (repeatable) |
 | `--watch` | `false` | Re-run scan at regular intervals (Ctrl+C to stop) |
 | `--interval` | `60` | Seconds between scans in watch mode |
+| `--webhook` | | Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint) |
 
 ---
 
@@ -196,7 +197,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Kustomize overlay support | ✅ v3 |
 | CRD support | v2 |
 | `--watch` continuous mode | ✅ v4 |
-| Slack / webhook notifications | v2 |
+| Slack / webhook notifications | ✅ v6 |
 | Flux `GitRepository` support | v2 |
 | Docker image | ✅ v5 |
 | Kubernetes operator | v2 |
