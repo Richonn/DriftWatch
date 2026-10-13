@@ -23,6 +23,7 @@ type Config struct {
 	Flux              bool
 	ArgoCD            bool
 	ExcludeNamespaces []string
+	Clusters          []string
 }
 
 func DefaultKubeConfig() string {

@@ -57,6 +57,7 @@ func run() error {
 	scanCmd.Flags().BoolVar(&cfg.Watch, "watch", false, "Re-run scan at regular intervals (Ctrl+C to stop)")
 	scanCmd.Flags().IntVar(&cfg.WatchInterval, "interval", 60, "Seconds between scans in watch mode")
 	scanCmd.Flags().StringVar(&cfg.WebhookURL, "webhook", "", "Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint)")
+	scanCmd.Flags().StringArrayVar(&cfg.Clusters, "cluster", nil, "Kubeconfig context name to scan (can be repeated for multi-cluster)")
 
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if !cfg.Flux && !cfg.ArgoCD && cfg.Repo == "" {
@@ -72,6 +73,10 @@ func run() error {
 
 		if cfg.ArgoCD {
 			return runArgoCDScan(&cfg)
+		}
+
+		if len(cfg.Clusters) > 0 {
+			return runMultiClusterScan(&cfg)
 		}
 
 		if cfg.Watch {
@@ -244,6 +249,48 @@ func sendNotification(cfg *config.Config, driftReport *diff.DriftReport) {
 	if err := notify.Send(cfg.WebhookURL, driftReport); err != nil {
 		fmt.Fprintf(os.Stderr, "warn: webhook notification failed: %v\n", err)
 	}
+}
+
+func runMultiClusterScan(cfg *config.Config) error {
+	fmt.Fprintf(os.Stderr, "→ Cloning %s (branch: %s)…\n", cfg.Repo, cfg.Branch)
+	cloneResult, err := gitops.CloneRepo(cfg.Repo, cfg.Branch, cfg.Token)
+	if err != nil {
+		return fmt.Errorf("clone repo: %w", err)
+	}
+	defer cloneResult.Cleanup()
+
+	fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
+	gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues})
+	if err != nil {
+		return fmt.Errorf("parse manifests: %w", err)
+	}
+
+	var hasDrift bool
+	for _, ctx := range cfg.Clusters {
+		fmt.Fprintf(os.Stderr, "\n→ Scanning cluster context: %s\n", ctx)
+		scoped := *cfg
+		scoped.Context = ctx
+
+		client, err := cluster.NewClient(&scoped)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warn: connect to cluster %s: %v\n", ctx, err)
+			continue
+		}
+		liveResources, err := cluster.FetchResources(client, &scoped)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warn: fetch resources from %s: %v\n", ctx, err)
+			continue
+		}
+
+		driftReport := diff.Compare(liveResources, gitopsResources, ctx, cfg.Repo)
+		sendNotification(cfg, driftReport)
+		if report.Render(os.Stdout, driftReport, cfg.Output) {
+			hasDrift = true
+		}
+	}
+
+	os.Exit(report.ExitCode(hasDrift, cfg.FailOnDrift))
+	return nil
 }
 
 func runWatch(cfg *config.Config) error {

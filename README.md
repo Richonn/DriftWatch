@@ -94,6 +94,13 @@ driftwatch scan --argocd --context my-cluster
 driftwatch scan \
   --repo https://github.com/your-org/gitops \
   --helm-values ./overrides/prod.yaml
+
+# Scan multiple clusters against the same GitOps repo (clones repo once)
+driftwatch scan \
+  --repo https://github.com/your-org/gitops \
+  --cluster prod-eu \
+  --cluster prod-us \
+  --cluster staging
 ```
 
 ### Example output
@@ -139,6 +146,7 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--interval` | `60` | Seconds between scans in watch mode |
 | `--webhook` | | Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint) |
 | `--exclude-namespace` | | Additional namespace(s) to exclude from the scan (can be repeated) |
+| `--cluster` | | Kubeconfig context name to scan (can be repeated for multi-cluster; clones repo once) |
 
 ---
 
@@ -222,6 +230,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Flux `GitRepository` support | ✅ v9 |
 | Docker image | ✅ v5 |
 | Homebrew tap | ✅ v7 |
+| Multi-cluster scan (`--cluster`) | ✅ v13 |
 | Kubernetes operator | v2 |
 
 ---
