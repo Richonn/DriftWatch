@@ -350,6 +350,138 @@ func TestMapStr_InterfaceMap(t *testing.T) {
 	}
 }
 
+// --- diffGenericSpec (CRDs) ---
+
+func TestCompare_SpecDrift_CRD_FieldDiffers(t *testing.T) {
+	live := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default",
+		Spec: map[string]interface{}{"color": "blue"}}
+	gitops := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default",
+		Spec: map[string]interface{}{"color": "red"}}
+
+	report := Compare([]cluster.Resource{live}, []cluster.Resource{gitops}, "ctx", "repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == "spec.color differs" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'spec.color differs', got %v", report.Drifts[0].Details)
+	}
+}
+
+func TestCompare_SpecDrift_CRD_FieldOnlyInCluster(t *testing.T) {
+	live := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default",
+		Spec: map[string]interface{}{"color": "blue", "extra": "val"}}
+	gitops := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default",
+		Spec: map[string]interface{}{"color": "blue"}}
+
+	report := Compare([]cluster.Resource{live}, []cluster.Resource{gitops}, "ctx", "repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == "spec.extra: present in cluster, missing in GitOps" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected cluster-only field detail, got %v", report.Drifts[0].Details)
+	}
+}
+
+func TestCompare_SpecDrift_CRD_FieldOnlyInGitOps(t *testing.T) {
+	live := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default",
+		Spec: map[string]interface{}{"color": "blue"}}
+	gitops := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default",
+		Spec: map[string]interface{}{"color": "blue", "size": "large"}}
+
+	report := Compare([]cluster.Resource{live}, []cluster.Resource{gitops}, "ctx", "repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if d == "spec.size: missing in cluster, present in GitOps" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected gitops-only field detail, got %v", report.Drifts[0].Details)
+	}
+}
+
+func TestCompare_SpecDrift_CRD_NoDrift(t *testing.T) {
+	spec := map[string]interface{}{"color": "blue", "size": "large"}
+	live := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default", Spec: spec}
+	gitops := cluster.Resource{Kind: "Widget", Name: "w", Namespace: "default", Spec: spec}
+
+	report := Compare([]cluster.Resource{live}, []cluster.Resource{gitops}, "ctx", "repo")
+
+	if report.DriftCount != 0 {
+		t.Errorf("expected 0 drifts for identical CRD spec, got %d", report.DriftCount)
+	}
+}
+
+// --- diffContainerResources ---
+
+func specWithResources(containerName, cpu, mem string) map[string]interface{} {
+	return map[string]interface{}{
+		"template": map[string]interface{}{
+			"spec": map[string]interface{}{
+				"containers": []interface{}{
+					map[string]interface{}{
+						"name":  containerName,
+						"image": "img:latest",
+						"resources": map[string]interface{}{
+							"requests": map[string]interface{}{"cpu": cpu, "memory": mem},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestCompare_SpecDrift_ContainerResources(t *testing.T) {
+	live := cluster.Resource{Kind: "Deployment", Name: "api", Namespace: "default",
+		Spec: specWithResources("api", "500m", "256Mi")}
+	gitops := cluster.Resource{Kind: "Deployment", Name: "api", Namespace: "default",
+		Spec: specWithResources("api", "100m", "128Mi")}
+
+	report := Compare([]cluster.Resource{live}, []cluster.Resource{gitops}, "ctx", "repo")
+
+	if report.DriftCount != 1 {
+		t.Fatalf("expected 1 drift, got %d", report.DriftCount)
+	}
+	found := false
+	for _, d := range report.Drifts[0].Details {
+		if len(d) > 0 && d[:len("container")] == "container" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected container resources detail, got %v", report.Drifts[0].Details)
+	}
+}
+
+// --- intField: unknown type ---
+
+func TestIntField_UnknownType(t *testing.T) {
+	spec := map[string]interface{}{"replicas": "not-a-number"}
+	v := intField(spec, "replicas")
+	if v != nil {
+		t.Errorf("expected nil for unknown type, got %v", v)
+	}
+}
+
 // --- Metadata ---
 
 func TestCompare_Metadata(t *testing.T) {
