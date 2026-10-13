@@ -16,12 +16,20 @@ const (
 	DriftSpecDrift        DriftType = "SPEC_DRIFT"
 )
 
+type DriftStatus string
+
+const (
+	DriftStatusOpen     DriftStatus = "open"
+	DriftStatusResolved DriftStatus = "resolved"
+)
+
 type DriftItem struct {
 	Kind      string
 	Name      string
 	Namespace string
 	DriftType DriftType
 	Details   []string
+	Status    DriftStatus
 }
 
 type DriftReport struct {
@@ -81,6 +89,7 @@ func Compare(liveResources, gitopsResources []cluster.Resource, clusterContext, 
 				Namespace: key.Namespace,
 				DriftType: DriftMissingInGitOps,
 				Details:   []string{"resource exists in cluster but has no manifest in GitOps repo"},
+				Status:    DriftStatusOpen,
 			})
 
 		case !inLive && inGitOps:
@@ -90,6 +99,7 @@ func Compare(liveResources, gitopsResources []cluster.Resource, clusterContext, 
 				Namespace: key.Namespace,
 				DriftType: DriftMissingInCluster,
 				Details:   []string{"manifest defined in GitOps repo but resource not found in cluster"},
+				Status:    DriftStatusOpen,
 			})
 
 		case inLive && inGitOps:
@@ -100,6 +110,7 @@ func Compare(liveResources, gitopsResources []cluster.Resource, clusterContext, 
 					Namespace: key.Namespace,
 					DriftType: DriftSpecDrift,
 					Details:   details,
+					Status:    DriftStatusOpen,
 				})
 			}
 		}

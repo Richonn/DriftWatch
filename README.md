@@ -158,7 +158,7 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--exclude-namespace` | | Additional namespace(s) to exclude from the scan (can be repeated) |
 | `--cluster` | | Kubeconfig context name to scan (can be repeated for multi-cluster; clones repo once) |
 | `--crd` | `false` | Also fetch and compare Custom Resource Definition instances |
-| `--report-dir` | | Directory to write one JSON report file per scan (filename: `drift-<context>-<timestamp>.json`) |
+| `--report-dir` | | Directory to write one JSON report file per scan (filename: `drift-<context>-<timestamp>.json`); previously open drifts that disappeared are marked `resolved` |
 
 ---
 
@@ -283,7 +283,7 @@ The operator reconciles every 30 s. When a `DriftWatchScan` is due (based on `sp
 | Homebrew tap | ✅ v7 |
 | Multi-cluster scan (`--cluster`) | ✅ v13 |
 | CRD support (`--crd`) | ✅ v14 |
-| Per-scan JSON report files (`--report-dir`) | ✅ v14 |
+| Per-scan JSON report files with `open`/`resolved` status | ✅ v16 |
 | Kubernetes operator (`DriftWatchScan` CRD) | ✅ v15 |
 
 ---
