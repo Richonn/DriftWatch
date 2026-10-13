@@ -14,9 +14,11 @@ type Config struct {
 	Branch      string
 	Path        string
 	Output      string
-	FailOnDrift bool
-	Token       string
-	HelmValues  []string
+	FailOnDrift    bool
+	Token          string
+	HelmValues     []string
+	Watch          bool
+	WatchInterval  int
 }
 
 func DefaultKubeConfig() string {

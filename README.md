@@ -107,6 +107,8 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--output` | `table` | Output format: `table`, `json`, or `yaml` |
 | `--fail-on-drift` | `false` | Exit with code 1 if any drift is detected |
 | `--helm-values` | | Extra values files passed to Helm when rendering charts (repeatable) |
+| `--watch` | `false` | Re-run scan at regular intervals (Ctrl+C to stop) |
+| `--interval` | `60` | Seconds between scans in watch mode |
 
 ---
 
@@ -184,7 +186,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Helm chart rendering | ✅ v2 |
 | Kustomize overlay support | ✅ v3 |
 | CRD support | v2 |
-| `--watch` continuous mode | v2 |
+| `--watch` continuous mode | ✅ v4 |
 | Slack / webhook notifications | v2 |
 | Flux `GitRepository` support | v2 |
 | Docker image | v2 |

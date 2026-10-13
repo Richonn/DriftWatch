@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Richonn/driftwatch/internal/cluster"
 	"github.com/Richonn/driftwatch/internal/config"
@@ -45,6 +49,8 @@ func run() error {
 	scanCmd.Flags().StringVar(&cfg.Repo, "repo", "", "GitOps repository URL (HTTPS or SSH)")
 	scanCmd.Flags().StringVar(&cfg.Token, "token", "", "Auth token for private repositories")
 	scanCmd.Flags().StringArrayVar(&cfg.HelmValues, "helm-values", nil, "Additional values file(s) for Helm chart rendering (can be repeated)")
+	scanCmd.Flags().BoolVar(&cfg.Watch, "watch", false, "Re-run scan at regular intervals (Ctrl+C to stop)")
+	scanCmd.Flags().IntVar(&cfg.WatchInterval, "interval", 60, "Seconds between scans in watch mode")
 
 	_ = scanCmd.MarkFlagRequired("repo")
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -52,32 +58,14 @@ func run() error {
 			return err
 		}
 
-		client, err := cluster.NewClient(&cfg)
-		if err != nil {
-			return fmt.Errorf("connect to cluster: %w", err)
+		if cfg.Watch {
+			return runWatch(&cfg)
 		}
 
-		fmt.Fprintln(os.Stderr, "→ Fetching live resources from cluster…")
-		liveResources, err := cluster.FetchResources(client, &cfg)
+		driftReport, err := runScan(&cfg)
 		if err != nil {
-			return fmt.Errorf("fetch cluster resources: %w", err)
+			return err
 		}
-
-		fmt.Fprintf(os.Stderr, "→ Cloning %s (branch: %s)…\n", cfg.Repo, cfg.Branch)
-		cloneResult, err := gitops.CloneRepo(cfg.Repo, cfg.Branch, cfg.Token)
-		if err != nil {
-			return fmt.Errorf("clone repo: %w", err)
-		}
-		defer cloneResult.Cleanup()
-
-		fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
-		gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues})
-		if err != nil {
-			return fmt.Errorf("parse manifests: %w", err)
-		}
-
-		driftReport := diff.Compare(liveResources, gitopsResources, cfg.Context, cfg.Repo)
-
 		report.RenderToStdout(driftReport, cfg.Output, cfg.FailOnDrift)
 		return nil
 	}
@@ -126,4 +114,65 @@ PowerShell:
 	rootCmd.AddCommand(scanCmd, versionCmd, completionCmd)
 
 	return rootCmd.Execute()
+}
+
+func runScan(cfg *config.Config) (*diff.DriftReport, error) {
+	fmt.Fprintln(os.Stderr, "→ Fetching live resources from cluster…")
+	client, err := cluster.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("connect to cluster: %w", err)
+	}
+
+	liveResources, err := cluster.FetchResources(client, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("fetch cluster resources: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "→ Cloning %s (branch: %s)…\n", cfg.Repo, cfg.Branch)
+	cloneResult, err := gitops.CloneRepo(cfg.Repo, cfg.Branch, cfg.Token)
+	if err != nil {
+		return nil, fmt.Errorf("clone repo: %w", err)
+	}
+	defer cloneResult.Cleanup()
+
+	fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
+	gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues})
+	if err != nil {
+		return nil, fmt.Errorf("parse manifests: %w", err)
+	}
+
+	return diff.Compare(liveResources, gitopsResources, cfg.Context, cfg.Repo), nil
+}
+
+func runWatch(cfg *config.Config) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	fmt.Fprintf(os.Stderr, "Watch mode — scanning every %ds (Ctrl+C to stop)\n", cfg.WatchInterval)
+
+	tick := func() {
+		fmt.Print("\033[2J\033[H")
+		driftReport, err := runScan(cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "scan error: %v\n", err)
+			return
+		}
+		report.Render(os.Stdout, driftReport, cfg.Output)
+		fmt.Fprintf(os.Stderr, "Next scan in %ds — Ctrl+C to stop\n", cfg.WatchInterval)
+	}
+
+	tick()
+
+	ticker := time.NewTicker(time.Duration(cfg.WatchInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			tick()
+		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr, "\nWatch stopped.")
+			return nil
+		}
+	}
 }
