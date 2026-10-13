@@ -197,7 +197,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 ## Limitations
 
 - **Helm subcharts / dependencies are not fetched automatically.** Run `helm dependency update` on the chart directory before scanning if your chart has dependencies. DriftWatch will warn if it detects missing dependencies.
-- **Kustomize patches are not applied.** `resources`, `namespace`, `namePrefix`, `nameSuffix`, and `images` overrides are supported. Strategic merge patches and JSON patches are not.
+- **Kustomize remote bases are not supported.** Only local resources are resolved.
 - **CRDs are not supported.** Only built-in Kubernetes resource types are compared.
 
 ---
@@ -214,6 +214,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | CI (lint, tests, cross-build) | ✅ v1 |
 | Helm chart rendering | ✅ v2 |
 | Kustomize overlay support | ✅ v3 |
+| Kustomize patches (strategic merge + JSON patch) | ✅ v11 |
 | CRD support | v2 |
 | `--watch` continuous mode | ✅ v4 |
 | Slack / webhook notifications | ✅ v6 |

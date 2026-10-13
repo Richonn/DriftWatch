@@ -8,3 +8,10 @@ resources:
 images:
   - name: myrepo/app
     newTag: v2.0.0
+patchesStrategicMerge:
+  - patch-replicas.yaml
+patchesJson6902:
+  - target:
+      kind: Service
+      name: app
+    path: patch-service-type.yaml
