@@ -30,7 +30,7 @@ builds:
 
 archives:
   - id: driftwatch
-    builds:
+    ids:
       - driftwatch
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
@@ -56,7 +56,7 @@ changelog:
       - Merge pull request
       - Merge branch
 
-brews:
+homebrew_casks:
   - name: driftwatch
     repository:
       owner: Richonn
@@ -65,10 +65,6 @@ brews:
     homepage: "https://github.com/Richonn/DriftWatch"
     description: "Detect drift between your live Kubernetes cluster and your GitOps repository"
     license: "MIT"
-    install: |
-      bin.install "driftwatch"
-    test: |
-      system "#{bin}/driftwatch", "version"
 
 release:
   github:
