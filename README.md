@@ -85,6 +85,12 @@ driftwatch scan \
 
 ### Example output
 
+![DriftWatch scan report — table format](docs/screenshots/scan-table.png)
+
+![DriftWatch scan report — JSON format](docs/screenshots/scan-json.png)
+
+![DriftWatch version](docs/screenshots/version.png)
+
 ```
 DriftWatch Scan Report
 Scanned at : 2026-09-15 14:32:01

@@ -32,3 +32,6 @@ go.work.sum
 # .vscode/
 
 DriftWatch_TODO.md
+
+# Local test cluster (not committed)
+local-test/

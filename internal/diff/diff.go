@@ -120,7 +120,6 @@ func specDiff(live, gitops cluster.Resource) []string {
 
 	case "Service":
 		details = append(details, diffField(live.Spec, gitops.Spec, "type", "spec.type")...)
-		details = append(details, diffField(live.Spec, gitops.Spec, "clusterIP", "spec.clusterIP")...)
 
 	case "ConfigMap":
 		liveData := mapStr(live.Spec["data"])

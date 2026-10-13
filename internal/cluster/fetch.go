@@ -9,10 +9,29 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var systemResources = map[string]bool{
+	"kube-root-ca.crt": true,
+}
+
+var systemServiceAccounts = map[string]bool{
+	"default": true,
+}
+
+var systemServices = map[string]bool{
+	"kubernetes": true,
+}
+
 var systemNamespaces = map[string]bool{
-	"kube-system":     true,
-	"kube-public":     true,
-	"kube-node-lease": true,
+	"kube-system":          true,
+	"kube-public":          true,
+	"kube-node-lease":      true,
+	"local-path-storage":   true,
+	"cert-manager":         true,
+	"ingress-nginx":        true,
+	"monitoring":           true,
+	"cattle-system":        true,
+	"flux-system":          true,
+	"argocd":               true,
 }
 
 type Resource struct {
@@ -96,7 +115,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range services.Items {
-		if systemNamespaces[item.Namespace] {
+		if systemNamespaces[item.Namespace] || systemServices[item.Name] {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -113,7 +132,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range configmaps.Items {
-		if systemNamespaces[item.Namespace] {
+		if systemNamespaces[item.Namespace] || systemResources[item.Name] {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -168,7 +187,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range serviceaccounts.Items {
-		if systemNamespaces[item.Namespace] {
+		if systemNamespaces[item.Namespace] || systemServiceAccounts[item.Name] {
 			continue
 		}
 		resources = append(resources, Resource{
