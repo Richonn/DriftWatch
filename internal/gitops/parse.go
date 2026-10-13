@@ -51,15 +51,25 @@ func ParseManifests(rootDir, subPath string, helmOpts HelmOptions) ([]cluster.Re
 			if d.Name() == ".git" {
 				return filepath.SkipDir
 			}
-			// Skip root dir itself; only check subdirectories for Helm charts
-			if path != searchRoot && isHelmChart(path) {
-				found, err := renderChart(path, helmOpts)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "warn: skipping helm chart %s: %v\n", path, err)
-				} else {
-					resources = append(resources, found...)
+			if path != searchRoot {
+				if isHelmChart(path) {
+					found, err := renderChart(path, helmOpts)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "warn: skipping helm chart %s: %v\n", path, err)
+					} else {
+						resources = append(resources, found...)
+					}
+					return filepath.SkipDir
 				}
-				return filepath.SkipDir
+				if isKustomize(path) {
+					found, err := renderKustomize(path)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "warn: skipping kustomize dir %s: %v\n", path, err)
+					} else {
+						resources = append(resources, found...)
+					}
+					return filepath.SkipDir
+				}
 			}
 			return nil
 		}
