@@ -22,6 +22,13 @@ It detects three types of drift:
 
 ## Installation
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap Richonn/driftwatch
+brew install driftwatch
+```
+
 ### Binary (Linux / macOS)
 
 ```bash
@@ -206,6 +213,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Slack / webhook notifications | ✅ v6 |
 | Flux `GitRepository` support | v2 |
 | Docker image | ✅ v5 |
+| Homebrew tap | ✅ v7 |
 | Kubernetes operator | v2 |
 
 ---

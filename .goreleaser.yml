@@ -56,6 +56,20 @@ changelog:
       - Merge pull request
       - Merge branch
 
+brews:
+  - name: driftwatch
+    repository:
+      owner: Richonn
+      name: homebrew-driftwatch
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/Richonn/DriftWatch"
+    description: "Detect drift between your live Kubernetes cluster and your GitOps repository"
+    license: "MIT"
+    install: |
+      bin.install "driftwatch"
+    test: |
+      system "#{bin}/driftwatch", "version"
+
 release:
   github:
     owner: Richonn
