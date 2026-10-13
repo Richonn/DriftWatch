@@ -51,6 +51,7 @@ func run() error {
 	scanCmd.Flags().StringVar(&cfg.Repo, "repo", "", "GitOps repository URL (HTTPS or SSH)")
 	scanCmd.Flags().StringVar(&cfg.Token, "token", "", "Auth token for private repositories")
 	scanCmd.Flags().StringArrayVar(&cfg.HelmValues, "helm-values", nil, "Additional values file(s) for Helm chart rendering (can be repeated)")
+	scanCmd.Flags().StringArrayVar(&cfg.ExcludeNamespaces, "exclude-namespace", nil, "Additional namespaces to exclude from the scan (can be repeated)")
 	scanCmd.Flags().BoolVar(&cfg.Flux, "flux", false, "Auto-discover repo and path from Flux GitRepository/Kustomization resources")
 	scanCmd.Flags().BoolVar(&cfg.ArgoCD, "argocd", false, "Auto-discover repo and path from ArgoCD Application resources")
 	scanCmd.Flags().BoolVar(&cfg.Watch, "watch", false, "Re-run scan at regular intervals (Ctrl+C to stop)")

@@ -53,6 +53,18 @@ func specToMap(obj interface{}) map[string]interface{} {
 	return m
 }
 
+func isExcluded(ns string, cfg *config.Config) bool {
+	if systemNamespaces[ns] {
+		return true
+	}
+	for _, excluded := range cfg.ExcludeNamespaces {
+		if excluded == ns {
+			return true
+		}
+	}
+	return false
+}
+
 func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource, error) {
 	ctx := context.Background()
 	ns := cfg.Namespace
@@ -64,7 +76,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range deployments.Items {
-		if systemNamespaces[item.Namespace] {
+		if isExcluded(item.Namespace, cfg) {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -81,7 +93,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range statefulsets.Items {
-		if systemNamespaces[item.Namespace] {
+		if isExcluded(item.Namespace, cfg) {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -98,7 +110,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range daemonsets.Items {
-		if systemNamespaces[item.Namespace] {
+		if isExcluded(item.Namespace, cfg) {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -115,7 +127,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range services.Items {
-		if systemNamespaces[item.Namespace] || systemServices[item.Name] {
+		if isExcluded(item.Namespace, cfg) || systemServices[item.Name] {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -132,7 +144,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range configmaps.Items {
-		if systemNamespaces[item.Namespace] || systemResources[item.Name] {
+		if isExcluded(item.Namespace, cfg) || systemResources[item.Name] {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -149,7 +161,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range secrets.Items {
-		if systemNamespaces[item.Namespace] {
+		if isExcluded(item.Namespace, cfg) {
 			continue
 		}
 		keys := make([]string, 0, len(item.Data))
@@ -170,7 +182,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range ingresses.Items {
-		if systemNamespaces[item.Namespace] {
+		if isExcluded(item.Namespace, cfg) {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -187,7 +199,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range serviceaccounts.Items {
-		if systemNamespaces[item.Namespace] || systemServiceAccounts[item.Name] {
+		if isExcluded(item.Namespace, cfg) || systemServiceAccounts[item.Name] {
 			continue
 		}
 		resources = append(resources, Resource{
@@ -204,7 +216,7 @@ func FetchResources(client kubernetes.Interface, cfg *config.Config) ([]Resource
 		return nil, err
 	}
 	for _, item := range netpols.Items {
-		if systemNamespaces[item.Namespace] {
+		if isExcluded(item.Namespace, cfg) {
 			continue
 		}
 		resources = append(resources, Resource{

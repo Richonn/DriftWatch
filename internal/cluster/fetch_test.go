@@ -168,6 +168,27 @@ func TestFetchResources_AllKinds(t *testing.T) {
 	}
 }
 
+func TestFetchResources_ExcludeNamespace(t *testing.T) {
+	client := fake.NewSimpleClientset(
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: "staging"}},
+	)
+
+	c := &config.Config{ExcludeNamespaces: []string{"staging"}}
+	resources, err := FetchResources(client, c)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, r := range resources {
+		if r.Namespace == "staging" {
+			t.Errorf("expected staging to be excluded, got resource: %+v", r)
+		}
+	}
+	if findResource(resources, "Deployment", "api", "default") == nil {
+		t.Error("expected Deployment api in default")
+	}
+}
+
 func findResource(resources []Resource, kind, name, ns string) *Resource {
 	for i := range resources {
 		r := &resources[i]

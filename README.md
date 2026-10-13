@@ -138,6 +138,7 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--watch` | `false` | Re-run scan at regular intervals (Ctrl+C to stop) |
 | `--interval` | `60` | Seconds between scans in watch mode |
 | `--webhook` | | Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint) |
+| `--exclude-namespace` | | Additional namespace(s) to exclude from the scan (can be repeated) |
 
 ---
 
