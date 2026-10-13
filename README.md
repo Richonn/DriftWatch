@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Richonn/DriftWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Richonn/DriftWatch/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8.svg)](go.mod)
+[![Go Version](https://img.shields.io/badge/go-1.27+-00ADD8.svg)](go.mod)
 
 ---
 
@@ -30,6 +30,15 @@ sudo mv driftwatch /usr/local/bin/
 ```
 
 > Windows and ARM binaries are available on the [releases page](https://github.com/Richonn/DriftWatch/releases).
+
+### Docker
+
+```bash
+docker run --rm \
+  -v ~/.kube/config:/home/nonroot/.kube/config:ro \
+  ghcr.io/richonn/driftwatch:latest \
+  scan --repo https://github.com/your-org/gitops
+```
 
 ### Build from source
 
@@ -189,7 +198,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | `--watch` continuous mode | ✅ v4 |
 | Slack / webhook notifications | v2 |
 | Flux `GitRepository` support | v2 |
-| Docker image | v2 |
+| Docker image | ✅ v5 |
 | Kubernetes operator | v2 |
 
 ---
