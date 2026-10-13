@@ -20,6 +20,7 @@ type Config struct {
 	Watch          bool
 	WatchInterval  int
 	WebhookURL     string
+	Flux           bool
 }
 
 func DefaultKubeConfig() string {

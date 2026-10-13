@@ -2,27 +2,36 @@ package cluster
 
 import (
 	"github.com/Richonn/driftwatch/internal/config"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func NewClient(cfg *config.Config) (*kubernetes.Clientset, error) {
-	file := cfg.KubeConfig
-	kubeContext := cfg.Context
-
+func restConfig(cfg *config.Config) (*rest.Config, error) {
 	loader := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: file},
-		&clientcmd.ConfigOverrides{CurrentContext: kubeContext},
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: cfg.KubeConfig},
+		&clientcmd.ConfigOverrides{CurrentContext: cfg.Context},
 	)
-
-	restConfig, err := loader.ClientConfig()
+	rc, err := loader.ClientConfig()
 	if err != nil {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		return rest.InClusterConfig()
 	}
+	return rc, nil
+}
 
-	return kubernetes.NewForConfig(restConfig)
+func NewClient(cfg *config.Config) (*kubernetes.Clientset, error) {
+	rc, err := restConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(rc)
+}
+
+func NewDynamicClient(cfg *config.Config) (dynamic.Interface, error) {
+	rc, err := restConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(rc)
 }

@@ -84,6 +84,9 @@ driftwatch scan \
 # Output as JSON (useful for scripting)
 driftwatch scan --repo https://github.com/your-org/gitops --output json
 
+# Auto-discover repo and path from Flux GitRepository/Kustomization resources
+driftwatch scan --flux --context my-cluster
+
 # Render Helm charts with custom values
 driftwatch scan \
   --repo https://github.com/your-org/gitops \
@@ -211,7 +214,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | CRD support | v2 |
 | `--watch` continuous mode | ✅ v4 |
 | Slack / webhook notifications | ✅ v6 |
-| Flux `GitRepository` support | v2 |
+| Flux `GitRepository` support | ✅ v9 |
 | Docker image | ✅ v5 |
 | Homebrew tap | ✅ v7 |
 | Kubernetes operator | v2 |

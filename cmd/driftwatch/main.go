@@ -15,6 +15,7 @@ import (
 	"github.com/Richonn/driftwatch/internal/notify"
 	"github.com/Richonn/driftwatch/internal/report"
 	"github.com/spf13/cobra"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
@@ -50,14 +51,21 @@ func run() error {
 	scanCmd.Flags().StringVar(&cfg.Repo, "repo", "", "GitOps repository URL (HTTPS or SSH)")
 	scanCmd.Flags().StringVar(&cfg.Token, "token", "", "Auth token for private repositories")
 	scanCmd.Flags().StringArrayVar(&cfg.HelmValues, "helm-values", nil, "Additional values file(s) for Helm chart rendering (can be repeated)")
+	scanCmd.Flags().BoolVar(&cfg.Flux, "flux", false, "Auto-discover repo and path from Flux GitRepository/Kustomization resources")
 	scanCmd.Flags().BoolVar(&cfg.Watch, "watch", false, "Re-run scan at regular intervals (Ctrl+C to stop)")
 	scanCmd.Flags().IntVar(&cfg.WatchInterval, "interval", 60, "Seconds between scans in watch mode")
 	scanCmd.Flags().StringVar(&cfg.WebhookURL, "webhook", "", "Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint)")
 
-	_ = scanCmd.MarkFlagRequired("repo")
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if !cfg.Flux && cfg.Repo == "" {
+			return fmt.Errorf("--repo is required (or use --flux to auto-discover from Flux resources)")
+		}
 		if err := cfg.Validate(); err != nil {
 			return err
+		}
+
+		if cfg.Flux {
+			return runFluxScan(&cfg)
 		}
 
 		if cfg.Watch {
@@ -145,6 +153,44 @@ func runScan(cfg *config.Config) (*diff.DriftReport, error) {
 	}
 
 	return diff.Compare(liveResources, gitopsResources, cfg.Context, cfg.Repo), nil
+}
+
+func runFluxScan(cfg *config.Config) error {
+	dynClient, err := cluster.NewDynamicClient(cfg)
+	if err != nil {
+		return fmt.Errorf("connect to cluster: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, "→ Discovering Flux sources…")
+	sources, err := cluster.DiscoverFluxSources(dynClient)
+	if err != nil {
+		return fmt.Errorf("discover flux sources: %w", err)
+	}
+	if len(sources) == 0 {
+		return fmt.Errorf("no Flux GitRepository/Kustomization resources found in cluster")
+	}
+
+	var hasDrift bool
+	for _, src := range sources {
+		fmt.Fprintf(os.Stderr, "\n→ Scanning Flux source: %s/%s (%s @ %s)\n", src.Namespace, src.Name, src.URL, src.Branch)
+		scoped := *cfg
+		scoped.Repo = src.URL
+		scoped.Branch = src.Branch
+		scoped.Path = src.Path
+
+		driftReport, err := runScan(&scoped)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warn: scan failed for %s/%s: %v\n", src.Namespace, src.Name, err)
+			continue
+		}
+		sendNotification(cfg, driftReport)
+		if report.Render(os.Stdout, driftReport, cfg.Output) {
+			hasDrift = true
+		}
+	}
+
+	os.Exit(report.ExitCode(hasDrift, cfg.FailOnDrift))
+	return nil
 }
 
 func sendNotification(cfg *config.Config, driftReport *diff.DriftReport) {
