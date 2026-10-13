@@ -215,6 +215,45 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 
 ---
 
+## Kubernetes Operator
+
+DriftWatch ships a Kubernetes operator that continuously monitors your cluster by reconciling `DriftWatchScan` custom resources.
+
+### Install
+
+```bash
+kubectl apply -f https://github.com/Richonn/DriftWatch/releases/latest/download/crd.yaml
+kubectl apply -f https://github.com/Richonn/DriftWatch/releases/latest/download/rbac.yaml
+kubectl apply -f https://github.com/Richonn/DriftWatch/releases/latest/download/deployment.yaml
+```
+
+### Create a scan
+
+```yaml
+apiVersion: driftwatch.io/v1alpha1
+kind: DriftWatchScan
+metadata:
+  name: production
+  namespace: driftwatch-system
+spec:
+  repo: https://github.com/your-org/gitops
+  branch: main
+  path: k8s/production
+  interval: 300          # scan every 5 minutes
+  namespace: production  # restrict to one namespace (optional)
+  tokenSecret: gh-token  # Secret with a "token" key (optional, for private repos)
+```
+
+```bash
+kubectl get driftwatchscans
+# NAME         REPO                                  DRIFTS   LAST SCAN              AGE
+# production   https://github.com/your-org/gitops    3        2026-10-13T14:32:01Z   2d
+```
+
+The operator reconciles every 30 s. When a `DriftWatchScan` is due (based on `spec.interval`), it runs a scan and writes the result to `status.driftCount`, `status.drifts`, and `status.lastScanAt`.
+
+---
+
 ## Limitations
 
 - **Helm subcharts / dependencies are not fetched automatically.** Run `helm dependency update` on the chart directory before scanning if your chart has dependencies. DriftWatch will warn if it detects missing dependencies.
@@ -245,7 +284,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Multi-cluster scan (`--cluster`) | ✅ v13 |
 | CRD support (`--crd`) | ✅ v14 |
 | Per-scan JSON report files (`--report-dir`) | ✅ v14 |
-| Kubernetes operator | v2 |
+| Kubernetes operator (`DriftWatchScan` CRD) | ✅ v15 |
 
 ---
 

@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: driftwatch-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: driftwatch-operator
+  namespace: driftwatch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: driftwatch-operator
+rules:
+  - apiGroups: ["driftwatch.io"]
+    resources: ["driftwatchscans"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["driftwatch.io"]
+    resources: ["driftwatchscans/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "serviceaccounts", "namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: driftwatch-operator
+subjects:
+  - kind: ServiceAccount
+    name: driftwatch-operator
+    namespace: driftwatch-system
+roleRef:
+  kind: ClusterRole
+  name: driftwatch-operator
+  apiGroup: rbac.authorization.k8s.io

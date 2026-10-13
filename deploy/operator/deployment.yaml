@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: driftwatch-operator
+  namespace: driftwatch-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: driftwatch-operator
+  template:
+    metadata:
+      labels:
+        app: driftwatch-operator
+    spec:
+      serviceAccountName: driftwatch-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: operator
+          image: ghcr.io/richonn/driftwatch-operator:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

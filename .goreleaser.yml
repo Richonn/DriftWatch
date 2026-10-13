@@ -28,10 +28,30 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
 
+  - id: driftwatch-operator
+    main: ./cmd/operator
+    binary: driftwatch-operator
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
 archives:
   - id: driftwatch
     ids:
       - driftwatch
+  - id: driftwatch-operator
+    ids:
+      - driftwatch-operator
+    name_template: "{{ .ProjectName }}-operator_{{ .Os }}_{{ .Arch }}"
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
