@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -142,6 +143,7 @@ func specDiff(live, gitops cluster.Resource) []string {
 
 	default:
 		details = append(details, diffLabels(live.Labels, gitops.Labels)...)
+		details = append(details, diffGenericSpec(live.Spec, gitops.Spec)...)
 	}
 
 	return details
@@ -273,6 +275,28 @@ func containerResources(spec map[string]interface{}) map[string]string {
 		result[name] = fmt.Sprintf("%v", cm["resources"])
 	}
 	return result
+}
+
+func diffGenericSpec(live, gitops map[string]interface{}) []string {
+	var details []string
+	for k, lv := range live {
+		gv, ok := gitops[k]
+		if !ok {
+			details = append(details, fmt.Sprintf("spec.%s: present in cluster, missing in GitOps", k))
+			continue
+		}
+		lj, _ := json.Marshal(lv)
+		gj, _ := json.Marshal(gv)
+		if string(lj) != string(gj) {
+			details = append(details, fmt.Sprintf("spec.%s differs", k))
+		}
+	}
+	for k := range gitops {
+		if _, ok := live[k]; !ok {
+			details = append(details, fmt.Sprintf("spec.%s: missing in cluster, present in GitOps", k))
+		}
+	}
+	return details
 }
 
 func mapStr(v interface{}) map[string]string {

@@ -12,6 +12,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func isCustomAPIVersion(apiVersion string) bool {
+	return !cluster.IsBuiltinAPIVersion(apiVersion)
+}
+
 type manifest struct {
 	APIVersion string                 `yaml:"apiVersion"`
 	Kind       string                 `yaml:"kind"`
@@ -79,7 +83,7 @@ func ParseManifests(rootDir, subPath string, helmOpts HelmOptions) ([]cluster.Re
 			return nil
 		}
 
-		found, err := parseFile(path)
+		found, err := parseFile(path, helmOpts.IncludeCRDs)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warn: skipping %s: %v\n", path, err)
 			return nil
@@ -93,7 +97,7 @@ func ParseManifests(rootDir, subPath string, helmOpts HelmOptions) ([]cluster.Re
 	return resources, nil
 }
 
-func parseFile(path string) ([]cluster.Resource, error) {
+func parseFile(path string, includeCRDs bool) ([]cluster.Resource, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -104,10 +108,10 @@ func parseFile(path string) ([]cluster.Resource, error) {
 		return nil, nil
 	}
 
-	return parseYAMLDocs(bytes.NewReader(data))
+	return parseYAMLDocs(bytes.NewReader(data), includeCRDs)
 }
 
-func parseYAMLDocs(r io.Reader) ([]cluster.Resource, error) {
+func parseYAMLDocs(r io.Reader, includeCRDs bool) ([]cluster.Resource, error) {
 	var resources []cluster.Resource
 	decoder := yaml.NewDecoder(r)
 
@@ -124,7 +128,9 @@ func parseYAMLDocs(r io.Reader) ([]cluster.Resource, error) {
 			continue
 		}
 		if !supportedKinds[m.Kind] {
-			continue
+			if !includeCRDs || !isCustomAPIVersion(m.APIVersion) {
+				continue
+			}
 		}
 
 		r := cluster.Resource{

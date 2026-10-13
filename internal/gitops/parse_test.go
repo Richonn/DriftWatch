@@ -3,6 +3,7 @@ package gitops
 import (
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/Richonn/driftwatch/internal/cluster"
@@ -126,5 +127,62 @@ func TestParseManifests_NonEmptyResult(t *testing.T) {
 	}
 	if len(resources) == 0 {
 		t.Error("expected at least some resources to be parsed")
+	}
+}
+
+const crdYAML = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: my-ns
+spec:
+  destination:
+    namespace: production
+`
+
+func TestParseYAMLDocs_CRDIncluded(t *testing.T) {
+	resources, err := parseYAMLDocs(strings.NewReader(crdYAML), true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resources) != 1 {
+		t.Fatalf("expected 1 CRD resource, got %d", len(resources))
+	}
+	if resources[0].Kind != "Application" {
+		t.Errorf("expected Kind=Application, got %q", resources[0].Kind)
+	}
+}
+
+func TestParseYAMLDocs_CRDExcludedByDefault(t *testing.T) {
+	resources, err := parseYAMLDocs(strings.NewReader(crdYAML), false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resources) != 0 {
+		t.Fatalf("expected 0 resources (CRDs excluded), got %d", len(resources))
+	}
+}
+
+func TestParseYAMLDocs_BuiltinUnsupportedKindAlwaysSkipped(t *testing.T) {
+	// CronJob is a built-in K8s kind (batch/v1) not in supportedKinds.
+	// It must be skipped even when includeCRDs=true.
+	cronjobYAML := `
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup
+  namespace: default
+spec:
+  schedule: "0 * * * *"
+`
+	for _, includeCRDs := range []bool{false, true} {
+		resources, err := parseYAMLDocs(strings.NewReader(cronjobYAML), includeCRDs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(resources) != 0 {
+			t.Errorf("includeCRDs=%v: CronJob (batch/v1) should always be skipped, got %d resources", includeCRDs, len(resources))
+		}
 	}
 }

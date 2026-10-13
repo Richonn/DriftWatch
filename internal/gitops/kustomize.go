@@ -76,7 +76,7 @@ func renderKustomize(dir string) ([]cluster.Resource, error) {
 		if info.IsDir() {
 			found, err = ParseManifests(path, ".", HelmOptions{})
 		} else {
-			found, err = parseFile(path)
+			found, err = parseFile(path, false)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("kustomize resource %s: %w", ref, err)

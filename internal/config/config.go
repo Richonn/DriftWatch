@@ -24,6 +24,8 @@ type Config struct {
 	ArgoCD            bool
 	ExcludeNamespaces []string
 	Clusters          []string
+	CRD               bool
+	ReportDir         string
 }
 
 func DefaultKubeConfig() string {

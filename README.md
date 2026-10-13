@@ -101,6 +101,16 @@ driftwatch scan \
   --cluster prod-eu \
   --cluster prod-us \
   --cluster staging
+
+# Include Custom Resource Definition instances in the scan
+driftwatch scan \
+  --repo https://github.com/your-org/gitops \
+  --crd
+
+# Write a JSON report file per scan to a directory
+driftwatch scan \
+  --repo https://github.com/your-org/gitops \
+  --report-dir ./drift-reports
 ```
 
 ### Example output
@@ -147,6 +157,8 @@ Deployment       legacy-worker                        production           ⚠ M
 | `--webhook` | | Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint) |
 | `--exclude-namespace` | | Additional namespace(s) to exclude from the scan (can be repeated) |
 | `--cluster` | | Kubeconfig context name to scan (can be repeated for multi-cluster; clones repo once) |
+| `--crd` | `false` | Also fetch and compare Custom Resource Definition instances |
+| `--report-dir` | | Directory to write one JSON report file per scan (filename: `drift-<context>-<timestamp>.json`) |
 
 ---
 
@@ -207,7 +219,7 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 
 - **Helm subcharts / dependencies are not fetched automatically.** Run `helm dependency update` on the chart directory before scanning if your chart has dependencies. DriftWatch will warn if it detects missing dependencies.
 - **Kustomize remote bases are not supported.** Only local resources are resolved.
-- **CRDs are not supported.** Only built-in Kubernetes resource types are compared.
+- **CRDs require `--crd`.** Use `--crd` to include Custom Resource Definition instances. Spec comparison is generic (top-level field diff), not schema-aware.
 
 ---
 
@@ -231,6 +243,8 @@ System namespaces (`kube-system`, `kube-public`, `kube-node-lease`) are automati
 | Docker image | ✅ v5 |
 | Homebrew tap | ✅ v7 |
 | Multi-cluster scan (`--cluster`) | ✅ v13 |
+| CRD support (`--crd`) | ✅ v14 |
+| Per-scan JSON report files (`--report-dir`) | ✅ v14 |
 | Kubernetes operator | v2 |
 
 ---

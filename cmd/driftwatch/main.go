@@ -58,6 +58,8 @@ func run() error {
 	scanCmd.Flags().IntVar(&cfg.WatchInterval, "interval", 60, "Seconds between scans in watch mode")
 	scanCmd.Flags().StringVar(&cfg.WebhookURL, "webhook", "", "Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint)")
 	scanCmd.Flags().StringArrayVar(&cfg.Clusters, "cluster", nil, "Kubeconfig context name to scan (can be repeated for multi-cluster)")
+	scanCmd.Flags().BoolVar(&cfg.CRD, "crd", false, "Also fetch and compare Custom Resource Definition instances")
+	scanCmd.Flags().StringVar(&cfg.ReportDir, "report-dir", "", "Directory to write per-scan JSON report files (filename: drift-<context>-<timestamp>.json)")
 
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if !cfg.Flux && !cfg.ArgoCD && cfg.Repo == "" {
@@ -88,6 +90,7 @@ func run() error {
 			return err
 		}
 		sendNotification(&cfg, driftReport)
+		maybeWriteReport(&cfg, driftReport)
 		report.RenderToStdout(driftReport, cfg.Output, cfg.FailOnDrift)
 		return nil
 	}
@@ -150,6 +153,20 @@ func runScan(cfg *config.Config) (*diff.DriftReport, error) {
 		return nil, fmt.Errorf("fetch cluster resources: %w", err)
 	}
 
+	if cfg.CRD {
+		dynClient, dynErr := cluster.NewDynamicClient(cfg)
+		if dynErr != nil {
+			fmt.Fprintf(os.Stderr, "warn: CRD dynamic client failed: %v\n", dynErr)
+		} else {
+			crdResources, crdErr := cluster.FetchCRDResources(client.Discovery(), dynClient, cfg)
+			if crdErr != nil {
+				fmt.Fprintf(os.Stderr, "warn: CRD resource fetch failed: %v\n", crdErr)
+			} else {
+				liveResources = append(liveResources, crdResources...)
+			}
+		}
+	}
+
 	fmt.Fprintf(os.Stderr, "→ Cloning %s (branch: %s)…\n", cfg.Repo, cfg.Branch)
 	cloneResult, err := gitops.CloneRepo(cfg.Repo, cfg.Branch, cfg.Token)
 	if err != nil {
@@ -158,7 +175,7 @@ func runScan(cfg *config.Config) (*diff.DriftReport, error) {
 	defer cloneResult.Cleanup()
 
 	fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
-	gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues})
+	gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues, IncludeCRDs: cfg.CRD})
 	if err != nil {
 		return nil, fmt.Errorf("parse manifests: %w", err)
 	}
@@ -195,6 +212,7 @@ func runArgoCDScan(cfg *config.Config) error {
 			continue
 		}
 		sendNotification(cfg, driftReport)
+		maybeWriteReport(cfg, driftReport)
 		if report.Render(os.Stdout, driftReport, cfg.Output) {
 			hasDrift = true
 		}
@@ -233,6 +251,7 @@ func runFluxScan(cfg *config.Config) error {
 			continue
 		}
 		sendNotification(cfg, driftReport)
+		maybeWriteReport(cfg, driftReport)
 		if report.Render(os.Stdout, driftReport, cfg.Output) {
 			hasDrift = true
 		}
@@ -240,6 +259,18 @@ func runFluxScan(cfg *config.Config) error {
 
 	os.Exit(report.ExitCode(hasDrift, cfg.FailOnDrift))
 	return nil
+}
+
+func maybeWriteReport(cfg *config.Config, driftReport *diff.DriftReport) {
+	if cfg.ReportDir == "" {
+		return
+	}
+	path, err := report.WriteFile(cfg.ReportDir, driftReport)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warn: write report file: %v\n", err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "→ Report written to %s\n", path)
 }
 
 func sendNotification(cfg *config.Config, driftReport *diff.DriftReport) {
@@ -260,7 +291,7 @@ func runMultiClusterScan(cfg *config.Config) error {
 	defer cloneResult.Cleanup()
 
 	fmt.Fprintln(os.Stderr, "→ Parsing GitOps manifests…")
-	gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues})
+	gitopsResources, err := gitops.ParseManifests(cloneResult.Dir, cfg.Path, gitops.HelmOptions{ValuesFiles: cfg.HelmValues, IncludeCRDs: cfg.CRD})
 	if err != nil {
 		return fmt.Errorf("parse manifests: %w", err)
 	}
@@ -284,6 +315,7 @@ func runMultiClusterScan(cfg *config.Config) error {
 
 		driftReport := diff.Compare(liveResources, gitopsResources, ctx, cfg.Repo)
 		sendNotification(cfg, driftReport)
+		maybeWriteReport(cfg, driftReport)
 		if report.Render(os.Stdout, driftReport, cfg.Output) {
 			hasDrift = true
 		}
@@ -307,6 +339,7 @@ func runWatch(cfg *config.Config) error {
 			return
 		}
 		sendNotification(cfg, driftReport)
+		maybeWriteReport(cfg, driftReport)
 		report.Render(os.Stdout, driftReport, cfg.Output)
 		fmt.Fprintf(os.Stderr, "Next scan in %ds — Ctrl+C to stop\n", cfg.WatchInterval)
 	}

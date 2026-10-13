@@ -14,6 +14,7 @@ import (
 
 type HelmOptions struct {
 	ValuesFiles []string
+	IncludeCRDs bool
 }
 
 func isHelmChart(dir string) bool {
@@ -61,7 +62,7 @@ func renderChart(chartDir string, opts HelmOptions) ([]cluster.Resource, error) 
 		if strings.HasSuffix(name, "/_helpers.tpl") || strings.HasSuffix(name, "/NOTES.txt") {
 			continue
 		}
-		found, err := parseYAMLDocs(strings.NewReader(content))
+		found, err := parseYAMLDocs(strings.NewReader(content), opts.IncludeCRDs)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warn: skipping rendered template %s: %v\n", name, err)
 			continue
