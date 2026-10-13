@@ -78,6 +78,8 @@ changelog:
 
 homebrew_casks:
   - name: driftwatch
+    ids:
+      - driftwatch
     repository:
       owner: Richonn
       name: homebrew-driftwatch
