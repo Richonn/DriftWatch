@@ -285,6 +285,7 @@ The operator reconciles every 30 s. When a `DriftWatchScan` is due (based on `sp
 | CRD support (`--crd`) | ✅ v14 |
 | Per-scan JSON report files with `open`/`resolved` status | ✅ v16 |
 | Kubernetes operator (`DriftWatchScan` CRD) | ✅ v15 |
+| Docker image for operator (`ghcr.io/richonn/driftwatch-operator`) | ✅ v17 |
 
 ---
 
