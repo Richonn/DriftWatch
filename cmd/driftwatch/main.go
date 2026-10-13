@@ -52,13 +52,14 @@ func run() error {
 	scanCmd.Flags().StringVar(&cfg.Token, "token", "", "Auth token for private repositories")
 	scanCmd.Flags().StringArrayVar(&cfg.HelmValues, "helm-values", nil, "Additional values file(s) for Helm chart rendering (can be repeated)")
 	scanCmd.Flags().BoolVar(&cfg.Flux, "flux", false, "Auto-discover repo and path from Flux GitRepository/Kustomization resources")
+	scanCmd.Flags().BoolVar(&cfg.ArgoCD, "argocd", false, "Auto-discover repo and path from ArgoCD Application resources")
 	scanCmd.Flags().BoolVar(&cfg.Watch, "watch", false, "Re-run scan at regular intervals (Ctrl+C to stop)")
 	scanCmd.Flags().IntVar(&cfg.WatchInterval, "interval", 60, "Seconds between scans in watch mode")
 	scanCmd.Flags().StringVar(&cfg.WebhookURL, "webhook", "", "Webhook URL to notify on drift (Slack incoming webhook or generic HTTP endpoint)")
 
 	scanCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if !cfg.Flux && cfg.Repo == "" {
-			return fmt.Errorf("--repo is required (or use --flux to auto-discover from Flux resources)")
+		if !cfg.Flux && !cfg.ArgoCD && cfg.Repo == "" {
+			return fmt.Errorf("--repo is required (or use --flux / --argocd to auto-discover)")
 		}
 		if err := cfg.Validate(); err != nil {
 			return err
@@ -66,6 +67,10 @@ func run() error {
 
 		if cfg.Flux {
 			return runFluxScan(&cfg)
+		}
+
+		if cfg.ArgoCD {
+			return runArgoCDScan(&cfg)
 		}
 
 		if cfg.Watch {
@@ -153,6 +158,44 @@ func runScan(cfg *config.Config) (*diff.DriftReport, error) {
 	}
 
 	return diff.Compare(liveResources, gitopsResources, cfg.Context, cfg.Repo), nil
+}
+
+func runArgoCDScan(cfg *config.Config) error {
+	dynClient, err := cluster.NewDynamicClient(cfg)
+	if err != nil {
+		return fmt.Errorf("connect to cluster: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, "→ Discovering ArgoCD applications…")
+	sources, err := cluster.DiscoverArgoCDSources(dynClient)
+	if err != nil {
+		return fmt.Errorf("discover argocd sources: %w", err)
+	}
+	if len(sources) == 0 {
+		return fmt.Errorf("no ArgoCD Application resources found in cluster")
+	}
+
+	var hasDrift bool
+	for _, src := range sources {
+		fmt.Fprintf(os.Stderr, "\n→ Scanning ArgoCD app: %s/%s (%s @ %s)\n", src.Namespace, src.Name, src.URL, src.Branch)
+		scoped := *cfg
+		scoped.Repo = src.URL
+		scoped.Branch = src.Branch
+		scoped.Path = src.Path
+
+		driftReport, err := runScan(&scoped)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warn: scan failed for %s/%s: %v\n", src.Namespace, src.Name, err)
+			continue
+		}
+		sendNotification(cfg, driftReport)
+		if report.Render(os.Stdout, driftReport, cfg.Output) {
+			hasDrift = true
+		}
+	}
+
+	os.Exit(report.ExitCode(hasDrift, cfg.FailOnDrift))
+	return nil
 }
 
 func runFluxScan(cfg *config.Config) error {

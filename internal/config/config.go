@@ -21,6 +21,7 @@ type Config struct {
 	WatchInterval  int
 	WebhookURL     string
 	Flux           bool
+	ArgoCD         bool
 }
 
 func DefaultKubeConfig() string {

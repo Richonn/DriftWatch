@@ -87,6 +87,9 @@ driftwatch scan --repo https://github.com/your-org/gitops --output json
 # Auto-discover repo and path from Flux GitRepository/Kustomization resources
 driftwatch scan --flux --context my-cluster
 
+# Auto-discover repo and path from ArgoCD Application resources
+driftwatch scan --argocd --context my-cluster
+
 # Render Helm charts with custom values
 driftwatch scan \
   --repo https://github.com/your-org/gitops \
